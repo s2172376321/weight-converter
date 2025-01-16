@@ -79,6 +79,7 @@
         <div id="photoResult" class="result hidden"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     <script>
         function calculateWeight() {
             const price = parseFloat(document.getElementById('price').value);
@@ -126,22 +127,46 @@
                     video.srcObject = stream;
 
                     takePhotoButton.addEventListener('click', () => {
-                        canvas.style.display = 'block';
-                        const context = canvas.getContext('2d');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                        // 停止攝影機
-                        stream.getTracks().forEach(track => track.stop());
-                        video.style.display = 'none';
-                        takePhotoButton.style.display = 'none';
-
-                        alert('拍照完成，請輸入重量！');
+                        capturePhoto(stream, canvas);
                     });
                 })
                 .catch((err) => {
                     alert('無法開啟相機: ' + err);
+                });
+        }
+
+        function capturePhoto(stream, canvas) {
+            const video = document.getElementById('camera');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 停止攝影機
+            stream.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+            document.getElementById('takePhoto').style.display = 'none';
+
+            // 使用 OCR 辨識數字
+            recognizeText(canvas);
+        }
+
+        function recognizeText(canvas) {
+            const imageData = canvas.toDataURL('image/png');
+
+            Tesseract.recognize(imageData, 'eng')
+                .then(({ data: { text } }) => {
+                    const weightInput = document.getElementById('photoWeight');
+                    const recognizedNumber = parseFloat(text.replace(/[^0-9.]/g, '')); // 過濾非數字字符
+                    if (!isNaN(recognizedNumber)) {
+                        weightInput.value = recognizedNumber;
+                        alert(`辨識完成！重量已填入: ${recognizedNumber}`);
+                    } else {
+                        alert('未能成功辨識數字，請重試或手動輸入。');
+                    }
+                })
+                .catch((err) => {
+                    alert('文字辨識失敗: ' + err);
                 });
         }
 
