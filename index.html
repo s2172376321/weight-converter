@@ -41,6 +41,9 @@
             border-radius: 5px;
             background-color: #f9f9f9;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -55,14 +58,15 @@
 
         <button onclick="calculateWeight()">計算</button>
 
-        <div id="result" class="result" style="display: none;"></div>
+        <div id="result" class="result hidden"></div>
 
         <hr>
 
         <h2>相機功能</h2>
         <button onclick="openCamera()">開啟相機</button>
-        <video id="camera" autoplay style="display:none; width:100%;"></video>
-        <canvas id="canvas" style="display:none;"></canvas>
+        <video id="camera" autoplay class="hidden" style="width:100%;"></video>
+        <canvas id="canvas" class="hidden"></canvas>
+        <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
         <br>
         <label for="photoWeight">拍攝後數字:</label>
         <input type="number" id="photoWeight" step="0.01" placeholder="例如: 50">
@@ -72,7 +76,7 @@
 
         <button onclick="calculatePhotoPrice()">計算總價</button>
 
-        <div id="photoResult" class="result" style="display: none;"></div>
+        <div id="photoResult" class="result hidden"></div>
     </div>
 
     <script>
@@ -107,14 +111,21 @@
         function openCamera() {
             const video = document.getElementById('camera');
             const canvas = document.getElementById('canvas');
-            const constraints = { video: true };
+            const takePhotoButton = document.getElementById('takePhoto');
+
+            const constraints = {
+                video: {
+                    facingMode: "environment"
+                }
+            };
 
             navigator.mediaDevices.getUserMedia(constraints)
                 .then((stream) => {
                     video.style.display = 'block';
+                    takePhotoButton.style.display = 'block';
                     video.srcObject = stream;
 
-                    video.addEventListener('click', () => {
+                    takePhotoButton.addEventListener('click', () => {
                         canvas.style.display = 'block';
                         const context = canvas.getContext('2d');
                         canvas.width = video.videoWidth;
@@ -124,6 +135,7 @@
                         // 停止攝影機
                         stream.getTracks().forEach(track => track.stop());
                         video.style.display = 'none';
+                        takePhotoButton.style.display = 'none';
 
                         alert('拍照完成，請輸入重量！');
                     });
