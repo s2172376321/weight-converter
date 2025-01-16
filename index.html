@@ -243,14 +243,14 @@
             }
 
             const totalWeightQian = taijin * 160 + liang * 10 + qian;
-            const totalPrice = (totalWeightQian / 160) * pricePerTaijin;
+            const totalPrice = Math.round((totalWeightQian / 160) * pricePerTaijin);
 
             const photoResultDiv = document.getElementById('photoResult');
             photoResultDiv.style.display = 'block';
             photoResultDiv.innerHTML = `
                 <p>重量: ${taijin}斤 ${liang}兩 ${qian}錢</p>
                 <p>每台斤價錢: ${pricePerTaijin}</p>
-                <p>總價: ${totalPrice.toFixed(2)} 元</p>
+                <p>總價: ${totalPrice} 元</p>
             `;
         }
     </script>
