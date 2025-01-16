@@ -85,6 +85,8 @@
             <label for="photoWeight">拍攝後數字 (格式: 斤.兩.錢):</label>
             <input type="text" id="photoWeight" placeholder="例如: 6.12.6" pattern="\d+\.\d{1,2}\.\d{1,2}" title="格式: 斤.兩.錢">
 
+            <button onclick="startVoiceRecognition()">語音輸入</button>
+
             <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
             <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
 
@@ -252,6 +254,33 @@
                 <p>每台斤價錢: ${pricePerTaijin}</p>
                 <p>總價: ${totalPrice} 元</p>
             `;
+        }
+
+        function startVoiceRecognition() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'zh-TW';
+
+            recognition.onstart = function() {
+                alert('語音辨識開始，請說出重量 (格式: 斤.兩.錢)。');
+            };
+
+            recognition.onresult = function(event) {
+                const weightInput = document.getElementById('photoWeight');
+                const transcript = event.results[0][0].transcript;
+                const matches = transcript.match(/\d+\.\d{1,2}\.\d{1,2}/);
+                if (matches) {
+                    weightInput.value = matches[0];
+                    alert(`語音辨識完成！重量已填入: ${matches[0]}`);
+                } else {
+                    alert('未能成功辨識語音中的斤.兩.錢格式，請重試。');
+                }
+            };
+
+            recognition.onerror = function(event) {
+                alert('語音辨識錯誤: ' + event.error);
+            };
+
+            recognition.start();
         }
     </script>
 </body>
