@@ -82,8 +82,8 @@
             <canvas id="canvas" class="hidden"></canvas>
             <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
             <br>
-            <label for="photoWeight">拍攝後數字:</label>
-            <input type="number" id="photoWeight" step="0.01" placeholder="例如: 50">
+            <label for="photoWeight">拍攝後數字 (格式: 斤.兩.錢):</label>
+            <input type="text" id="photoWeight" placeholder="例如: 6.12.6" pattern="\d+\.\d{1,2}\.\d{1,2}" title="格式: 斤.兩.錢">
 
             <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
             <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
@@ -213,12 +213,12 @@
             })
                 .then(({ data: { text } }) => {
                     const weightInput = document.getElementById('photoWeight');
-                    const recognizedNumber = parseFloat(text.replace(/[^0-9.]/g, '')); // 過濾非數字字符
-                    if (!isNaN(recognizedNumber)) {
-                        weightInput.value = recognizedNumber;
-                        alert(`辨識完成！重量已填入: ${recognizedNumber}`);
+                    const matches = text.match(/\d+\.\d{1,2}\.\d{1,2}/);
+                    if (matches) {
+                        weightInput.value = matches[0];
+                        alert(`辨識完成！重量已填入: ${matches[0]}`);
                     } else {
-                        alert('未能成功辨識數字，請重試或手動輸入。');
+                        alert('未能成功辨識斤.兩.錢的格式，請重試或手動輸入。');
                     }
                 })
                 .catch((err) => {
@@ -227,20 +227,28 @@
         }
 
         function calculatePhotoPrice() {
-            const weight = parseFloat(document.getElementById('photoWeight').value);
+            const weightInput = document.getElementById('photoWeight').value;
             const pricePerTaijin = parseFloat(document.getElementById('photoPricePerTaijin').value);
 
-            if (isNaN(weight) || isNaN(pricePerTaijin) || weight <= 0 || pricePerTaijin <= 0) {
+            if (!/\d+\.\d{1,2}\.\d{1,2}/.test(weightInput)) {
+                alert('請輸入符合斤.兩.錢格式的重量！');
+                return;
+            }
+
+            const [taijin, liang, qian] = weightInput.split('.').map(Number);
+
+            if (isNaN(pricePerTaijin) || pricePerTaijin <= 0 || taijin < 0 || liang < 0 || qian < 0) {
                 alert('請輸入有效且正數的重量和每台斤的價錢！');
                 return;
             }
 
-            const totalPrice = (weight / 16) * pricePerTaijin;
+            const totalWeightQian = taijin * 160 + liang * 10 + qian;
+            const totalPrice = (totalWeightQian / 160) * pricePerTaijin;
 
             const photoResultDiv = document.getElementById('photoResult');
             photoResultDiv.style.display = 'block';
             photoResultDiv.innerHTML = `
-                <p>重量: ${weight} 兩</p>
+                <p>重量: ${taijin}斤 ${liang}兩 ${qian}錢</p>
                 <p>每台斤價錢: ${pricePerTaijin}</p>
                 <p>總價: ${totalPrice.toFixed(2)} 元</p>
             `;
