@@ -44,43 +44,67 @@
         .hidden {
             display: none;
         }
+        .menu {
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>重量轉換器</h1>
 
-        <label for="price">請輸入總價錢（數值）:</label>
-        <input type="number" id="price" step="0.01" placeholder="例如: 1000">
+        <div class="menu">
+            <button onclick="showPriceToWeight()">價錢反推重量</button>
+            <button onclick="showWeightToPrice()">算錢機器人</button>
+        </div>
 
-        <label for="pricePerTaijin">請輸入每台斤的價錢（數值）:</label>
-        <input type="number" id="pricePerTaijin" step="0.01" placeholder="例如: 200">
+        <div id="priceToWeightSection" class="hidden">
+            <h2>價錢反推重量</h2>
+            <label for="price">請輸入總價錢（數值）:</label>
+            <input type="number" id="price" step="0.01" placeholder="例如: 1000">
 
-        <button onclick="calculateWeight()">計算</button>
+            <label for="pricePerTaijin">請輸入每台斤的價錢（數值）:</label>
+            <input type="number" id="pricePerTaijin" step="0.01" placeholder="例如: 200">
 
-        <div id="result" class="result hidden"></div>
+            <button onclick="calculateWeight()">計算</button>
 
-        <hr>
+            <div id="result" class="result hidden"></div>
+        </div>
 
-        <h2>相機功能</h2>
-        <button onclick="openCamera()">開啟相機</button>
-        <video id="camera" autoplay class="hidden" style="width:100%;"></video>
-        <canvas id="canvas" class="hidden"></canvas>
-        <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
-        <br>
-        <label for="photoWeight">拍攝後數字:</label>
-        <input type="number" id="photoWeight" step="0.01" placeholder="例如: 50">
+        <div id="weightToPriceSection" class="hidden">
+            <h2>算錢機器人</h2>
+            <button onclick="openCamera()">開啟相機</button>
+            <video id="camera" autoplay playsinline class="hidden" style="width:100%;"></video>
+            <canvas id="canvas" class="hidden"></canvas>
+            <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
+            <br>
+            <label for="photoWeight">拍攝後數字:</label>
+            <input type="number" id="photoWeight" step="0.01" placeholder="例如: 50">
 
-        <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
-        <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
+            <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
+            <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
 
-        <button onclick="calculatePhotoPrice()">計算總價</button>
+            <button onclick="calculatePhotoPrice()">計算總價</button>
 
-        <div id="photoResult" class="result hidden"></div>
+            <div id="photoResult" class="result hidden"></div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     <script>
+        let currentStream;
+
+        function showPriceToWeight() {
+            document.getElementById('priceToWeightSection').classList.remove('hidden');
+            document.getElementById('weightToPriceSection').classList.add('hidden');
+        }
+
+        function showWeightToPrice() {
+            document.getElementById('weightToPriceSection').classList.remove('hidden');
+            document.getElementById('priceToWeightSection').classList.add('hidden');
+        }
+
         function calculateWeight() {
             const price = parseFloat(document.getElementById('price').value);
             const pricePerTaijin = parseFloat(document.getElementById('pricePerTaijin').value);
@@ -111,7 +135,6 @@
 
         function openCamera() {
             const video = document.getElementById('camera');
-            const canvas = document.getElementById('canvas');
             const takePhotoButton = document.getElementById('takePhoto');
 
             const constraints = {
@@ -122,33 +145,42 @@
 
             navigator.mediaDevices.getUserMedia(constraints)
                 .then((stream) => {
+                    currentStream = stream;
                     video.style.display = 'block';
                     takePhotoButton.style.display = 'block';
                     video.srcObject = stream;
-
-                    takePhotoButton.addEventListener('click', () => {
-                        capturePhoto(stream, canvas);
-                    });
                 })
                 .catch((err) => {
                     alert('無法開啟相機: ' + err);
                 });
         }
 
-        function capturePhoto(stream, canvas) {
+        function capturePhoto() {
             const video = document.getElementById('camera');
+            const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
+
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // 停止攝影機
-            stream.getTracks().forEach(track => track.stop());
-            video.style.display = 'none';
-            document.getElementById('takePhoto').style.display = 'none';
+            // 停止直播並隱藏相機畫面
+            stopCamera();
 
             // 使用 OCR 辨識數字
             recognizeText(canvas);
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('camera');
+            const takePhotoButton = document.getElementById('takePhoto');
+
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            video.style.display = 'none';
+            takePhotoButton.style.display = 'none';
         }
 
         function recognizeText(canvas) {
