@@ -24,7 +24,10 @@
             border-radius: 5px;
         }
         button {
-            padding: 10px 20px;
+            padding: 20px;
+            font-size: 1.5em;
+            width: 100%;
+            margin: 10px 0;
             background-color: #007BFF;
             color: white;
             border: none;
@@ -184,9 +187,30 @@
         }
 
         function recognizeText(canvas) {
-            const imageData = canvas.toDataURL('image/png');
+            const context = canvas.getContext('2d');
+            const fullImage = context.getImageData(0, 0, canvas.width, canvas.height);
 
-            Tesseract.recognize(imageData, 'eng')
+            // 裁剪藍色框的區域，這裡需要手動設置框的座標
+            const cropX = canvas.width * 0.3; // 假設藍色框大約在圖片的 30% 水平位置
+            const cropY = canvas.height * 0.2; // 假設藍色框大約在圖片的 20% 垂直位置
+            const cropWidth = canvas.width * 0.4; // 假設藍色框寬度為圖片的 40%
+            const cropHeight = canvas.height * 0.3; // 假設藍色框高度為圖片的 30%
+
+            const croppedImage = context.getImageData(cropX, cropY, cropWidth, cropHeight);
+
+            // 創建新的 Canvas 僅包含裁剪部分
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = cropWidth;
+            tempCanvas.height = cropHeight;
+            const tempContext = tempCanvas.getContext('2d');
+            tempContext.putImageData(croppedImage, 0, 0);
+
+            // 使用 Tesseract.js 辨識裁剪部分
+            const croppedImageData = tempCanvas.toDataURL('image/png');
+            Tesseract.recognize(croppedImageData, 'eng', {
+                logger: (info) => console.log(info), // 日誌用於調試
+                tessedit_char_whitelist: '0123456789.', // 僅允許數字和小數點
+            })
                 .then(({ data: { text } }) => {
                     const weightInput = document.getElementById('photoWeight');
                     const recognizedNumber = parseFloat(text.replace(/[^0-9.]/g, '')); // 過濾非數字字符
