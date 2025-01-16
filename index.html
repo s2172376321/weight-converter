@@ -85,8 +85,6 @@
             <label for="photoWeight">拍攝後數字 (格式: 斤.兩.錢):</label>
             <input type="text" id="photoWeight" placeholder="例如: 6.12.6" pattern="\d+\.\d{1,2}\.\d{1,2}" title="格式: 斤.兩.錢">
 
-            <button onclick="startVoiceRecognition()">語音輸入</button>
-
             <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
             <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
 
@@ -96,7 +94,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     <script>
         let currentStream;
 
@@ -172,8 +169,10 @@
             // 停止直播並隱藏相機畫面
             stopCamera();
 
-            // 使用 OCR 辨識數字
-            recognizeText(canvas);
+            // 將圖像發送到後端進行辨識
+            canvas.toBlob((blob) => {
+                sendToServer(blob);
+            }, 'image/png');
         }
 
         function stopCamera() {
@@ -188,44 +187,25 @@
             takePhotoButton.style.display = 'none';
         }
 
-        function recognizeText(canvas) {
-            const context = canvas.getContext('2d');
-            const fullImage = context.getImageData(0, 0, canvas.width, canvas.height);
+        function sendToServer(imageBlob) {
+            const formData = new FormData();
+            formData.append("image", imageBlob);
 
-            // 裁剪藍色框的區域，這裡需要手動設置框的座標
-            const cropX = canvas.width * 0.3; // 假設藍色框大約在圖片的 30% 水平位置
-            const cropY = canvas.height * 0.2; // 假設藍色框大約在圖片的 20% 垂直位置
-            const cropWidth = canvas.width * 0.4; // 假設藍色框寬度為圖片的 40%
-            const cropHeight = canvas.height * 0.3; // 假設藍色框高度為圖片的 30%
-
-            const croppedImage = context.getImageData(cropX, cropY, cropWidth, cropHeight);
-
-            // 創建新的 Canvas 僅包含裁剪部分
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = cropWidth;
-            tempCanvas.height = cropHeight;
-            const tempContext = tempCanvas.getContext('2d');
-            tempContext.putImageData(croppedImage, 0, 0);
-
-            // 使用 Tesseract.js 辨識裁剪部分
-            const croppedImageData = tempCanvas.toDataURL('image/png');
-            Tesseract.recognize(croppedImageData, 'eng', {
-                logger: (info) => console.log(info), // 日誌用於調試
-                tessedit_char_whitelist: '0123456789.', // 僅允許數字和小數點
+            fetch("http://localhost:5000/recognize", {
+                method: "POST",
+                body: formData,
             })
-                .then(({ data: { text } }) => {
-                    const weightInput = document.getElementById('photoWeight');
-                    const matches = text.match(/\d+\.\d{1,2}\.\d{1,2}/);
-                    if (matches) {
-                        weightInput.value = matches[0];
-                        alert(`辨識完成！重量已填入: ${matches[0]}`);
-                    } else {
-                        alert('未能成功辨識斤.兩.錢的格式，請重試或手動輸入。');
-                    }
-                })
-                .catch((err) => {
-                    alert('文字辨識失敗: ' + err);
-                });
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.digit !== undefined) {
+                    document.getElementById("photoWeight").value = data.digit;
+                } else {
+                    alert("辨識失敗: " + data.error);
+                }
+            })
+            .catch((err) => {
+                alert("錯誤發生: " + err);
+            });
         }
 
         function calculatePhotoPrice() {
@@ -254,33 +234,6 @@
                 <p>每台斤價錢: ${pricePerTaijin}</p>
                 <p>總價: ${totalPrice} 元</p>
             `;
-        }
-
-        function startVoiceRecognition() {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'zh-TW';
-
-            recognition.onstart = function() {
-                alert('語音辨識開始，請說出重量 (格式: 斤.兩.錢)。');
-            };
-
-            recognition.onresult = function(event) {
-                const weightInput = document.getElementById('photoWeight');
-                const transcript = event.results[0][0].transcript;
-                const matches = transcript.match(/\d+\.\d{1,2}\.\d{1,2}/);
-                if (matches) {
-                    weightInput.value = matches[0];
-                    alert(`語音辨識完成！重量已填入: ${matches[0]}`);
-                } else {
-                    alert('未能成功辨識語音中的斤.兩.錢格式，請重試。');
-                }
-            };
-
-            recognition.onerror = function(event) {
-                alert('語音辨識錯誤: ' + event.error);
-            };
-
-            recognition.start();
         }
     </script>
 </body>
