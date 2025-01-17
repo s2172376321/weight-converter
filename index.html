@@ -47,193 +47,49 @@
         .hidden {
             display: none;
         }
-        .menu {
-            text-align: center;
-            margin-top: 20px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>重量轉換器</h1>
 
-        <div class="menu">
-            <button onclick="showPriceToWeight()">價錢反推重量</button>
-            <button onclick="showWeightToPrice()">算錢機器人</button>
-        </div>
+        <label for="fileInput">上傳圖片進行辨識:</label>
+        <input type="file" id="fileInput" accept="image/*">
 
-        <div id="priceToWeightSection" class="hidden">
-            <h2>價錢反推重量</h2>
-            <label for="price">請輸入總價錢（數值）:</label>
-            <input type="number" id="price" step="0.01" placeholder="例如: 1000">
+        <button onclick="uploadImage()">辨識圖片</button>
 
-            <label for="pricePerTaijin">請輸入每台斤的價錢（數值）:</label>
-            <input type="number" id="pricePerTaijin" step="0.01" placeholder="例如: 200">
-
-            <button onclick="calculateWeight()">計算</button>
-
-            <div id="result" class="result hidden"></div>
-        </div>
-
-        <div id="weightToPriceSection" class="hidden">
-            <h2>算錢機器人</h2>
-            <button onclick="openCamera()">開啟相機</button>
-            <video id="camera" autoplay playsinline class="hidden" style="width:100%;"></video>
-            <canvas id="canvas" class="hidden"></canvas>
-            <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
-            <br>
-            <label for="photoWeight">拍攝後數字 (格式: 斤.兩.錢):</label>
-            <input type="text" id="photoWeight" placeholder="例如: 6.12.6" pattern="\d+\.\d{1,2}\.\d{1,2}" title="格式: 斤.兩.錢">
-
-            <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
-            <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
-
-            <button onclick="calculatePhotoPrice()">計算總價</button>
-
-            <div id="photoResult" class="result hidden"></div>
-        </div>
+        <div id="result" class="result hidden"></div>
     </div>
 
     <script>
-        let currentStream;
-
-        function showPriceToWeight() {
-            document.getElementById('priceToWeightSection').classList.remove('hidden');
-            document.getElementById('weightToPriceSection').classList.add('hidden');
-        }
-
-        function showWeightToPrice() {
-            document.getElementById('weightToPriceSection').classList.remove('hidden');
-            document.getElementById('priceToWeightSection').classList.add('hidden');
-        }
-
-        function calculateWeight() {
-            const price = parseFloat(document.getElementById('price').value);
-            const pricePerTaijin = parseFloat(document.getElementById('pricePerTaijin').value);
-
-            if (isNaN(price) || isNaN(pricePerTaijin) || price <= 0 || pricePerTaijin <= 0) {
-                alert('請輸入有效且正數的總價錢和每台斤的價錢！');
-                return;
-            }
-
-            const pricePerQian = pricePerTaijin / 160;
-            const totalQian = price / pricePerQian;
-
-            const taijin = Math.floor(totalQian / 160);
-            const liang = Math.floor((totalQian % 160) / 10);
-            const qian = Math.round((totalQian % 160) % 10);
-
-            const decimalWeight = (taijin + liang / 16 + qian / 160).toFixed(1);
-
+        function uploadImage() {
+            const fileInput = document.getElementById('fileInput');
             const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
-            resultDiv.innerHTML = `
-                <p>輸入總價錢: ${price}</p>
-                <p>每台斤價錢: ${pricePerTaijin}</p>
-                <p>台斤: ${taijin} 兩: ${liang} 錢: ${qian}</p>
-                <p>十進制重量: ${decimalWeight}</p>
-            `;
-        }
 
-        function openCamera() {
-            const video = document.getElementById('camera');
-            const takePhotoButton = document.getElementById('takePhoto');
-
-            const constraints = {
-                video: {
-                    facingMode: "environment"
-                }
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then((stream) => {
-                    currentStream = stream;
-                    video.style.display = 'block';
-                    takePhotoButton.style.display = 'block';
-                    video.srcObject = stream;
-                })
-                .catch((err) => {
-                    alert('無法開啟相機: ' + err);
-                });
-        }
-
-        function capturePhoto() {
-            const video = document.getElementById('camera');
-            const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // 停止直播並隱藏相機畫面
-            stopCamera();
-
-            // 將圖像發送到後端進行辨識
-            canvas.toBlob((blob) => {
-                sendToServer(blob);
-            }, 'image/png');
-        }
-
-        function stopCamera() {
-            const video = document.getElementById('camera');
-            const takePhotoButton = document.getElementById('takePhoto');
-
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
+            if (!fileInput.files[0]) {
+                alert('請選擇一張圖片！');
+                return;
             }
-            video.style.display = 'none';
-            takePhotoButton.style.display = 'none';
-        }
 
-        function sendToServer(imageBlob) {
             const formData = new FormData();
-            formData.append("image", imageBlob);
+            formData.append('image', fileInput.files[0]);
 
-            fetch("http://localhost:5000/recognize", {
-                method: "POST",
-                body: formData,
+            fetch('/recognize', {
+                method: 'POST',
+                body: formData
             })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.digit !== undefined) {
-                    document.getElementById("photoWeight").value = data.digit;
+            .then(response => response.json())
+            .then(data => {
+                if (data.numbers) {
+                    resultDiv.classList.remove('hidden');
+                    resultDiv.innerHTML = `<p>辨識結果: ${data.numbers.join(', ')}</p>`;
                 } else {
-                    alert("辨識失敗: " + data.error);
+                    alert('辨識失敗！');
                 }
             })
-            .catch((err) => {
-                alert("錯誤發生: " + err);
+            .catch(err => {
+                alert('錯誤發生: ' + err);
             });
-        }
-
-        function calculatePhotoPrice() {
-            const weightInput = document.getElementById('photoWeight').value;
-            const pricePerTaijin = parseFloat(document.getElementById('photoPricePerTaijin').value);
-
-            if (!/\d+\.\d{1,2}\.\d{1,2}/.test(weightInput)) {
-                alert('請輸入符合斤.兩.錢格式的重量！');
-                return;
-            }
-
-            const [taijin, liang, qian] = weightInput.split('.').map(Number);
-
-            if (isNaN(pricePerTaijin) || pricePerTaijin <= 0 || taijin < 0 || liang < 0 || qian < 0) {
-                alert('請輸入有效且正數的重量和每台斤的價錢！');
-                return;
-            }
-
-            const totalWeightQian = taijin * 160 + liang * 10 + qian;
-            const totalPrice = Math.round((totalWeightQian / 160) * pricePerTaijin);
-
-            const photoResultDiv = document.getElementById('photoResult');
-            photoResultDiv.style.display = 'block';
-            photoResultDiv.innerHTML = `
-                <p>重量: ${taijin}斤 ${liang}兩 ${qian}錢</p>
-                <p>每台斤價錢: ${pricePerTaijin}</p>
-                <p>總價: ${totalPrice} 元</p>
-            `;
         }
     </script>
 </body>
