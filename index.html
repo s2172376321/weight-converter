@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>重量工具</title>
+    <title>重量辨識與價錢反推</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,35 +14,17 @@
             margin: auto;
             text-align: center;
         }
-        .label {
-            font-size: 1.2em;
-            display: block;
-            margin-bottom: 10px;
-        }
         input, button {
-            width: calc(100% - 20px);
-            padding: 15px;
-            font-size: 1.2em;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            margin: 10px;
+            padding: 10px;
+            width: 90%;
+            font-size: 1em;
         }
-        button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #result, #photoResult {
+        #result {
             margin-top: 20px;
-            font-size: 1.2em;
-            padding: 15px;
+            padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            background-color: #f9f9f9;
         }
         video, canvas {
             max-width: 100%;
@@ -52,30 +34,21 @@
 </head>
 <body>
     <div class="container">
-        <h1>重量工具</h1>
+        <h1>重量辨識與價錢反推</h1>
 
-        <!-- 價錢反推重量功能 -->
-        <h2>價錢反推重量</h2>
-        <label for="price" class="label">請輸入總價錢（數值）:</label>
-        <input type="number" id="price" step="0.01" placeholder="例如: 1000">
-
-        <label for="pricePerTaijin" class="label">請輸入每台斤的價錢（數值）:</label>
-        <input type="number" id="pricePerTaijin" step="0.01" placeholder="例如: 200">
-
-        <button onclick="calculateWeight()">計算</button>
-
-        <div id="result"></div>
-
-        <!-- 拍照辨識功能 -->
-        <h2>重量辨識功能</h2>
+        <!-- 拍照功能 -->
         <video id="camera" autoplay playsinline></video>
         <canvas id="canvas" style="display: none;"></canvas>
-        <button onclick="capturePhoto()">拍照</button>
+        <button onclick="capturePhoto()">拍照辨識重量</button>
 
-        <input type="file" id="fileInput" accept="image/*">
-        <button onclick="uploadImage()">辨識上傳圖片</button>
+        <!-- 價錢反推功能 -->
+        <h2>價錢反推重量</h2>
+        <input type="number" id="price" placeholder="請輸入總價錢 (數值)" step="0.01">
+        <input type="number" id="pricePerTaijin" placeholder="請輸入每台斤價格 (數值)" step="0.01">
+        <button onclick="calculateWeight()">計算重量</button>
 
-        <div id="photoResult"></div>
+        <!-- 結果顯示區 -->
+        <div id="result"></div>
     </div>
 
     <script>
@@ -83,8 +56,8 @@
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
 
-        // 啟動相機
-        navigator.mediaDevices.getUserMedia({ video: true })
+        // 啟動相機 (使用後鏡頭)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then((stream) => {
                 video.srcObject = stream;
             })
@@ -92,10 +65,13 @@
                 alert('無法啟用相機: ' + err);
             });
 
-        // 拍照並辨識
+        // 拍照並辨識重量
         function capturePhoto() {
+            // 設置畫布大小與相機畫面一致
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+
+            // 將相機畫面繪製到畫布上
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             // 將畫布轉換為 Blob
@@ -104,6 +80,7 @@
             }, 'image/png');
         }
 
+        // 上傳相機圖片 Blob
         function uploadImageBlob(blob) {
             const formData = new FormData();
             formData.append('image', blob);
@@ -114,13 +91,14 @@
             })
             .then(response => response.json())
             .then(data => {
-                displayPhotoResult(data);
+                displayResult(data);
             })
             .catch(err => {
                 displayError(err);
             });
         }
 
+        // 上傳文件圖片
         function uploadImage() {
             const fileInput = document.getElementById('fileInput');
             if (!fileInput.files[0]) {
@@ -137,49 +115,62 @@
             })
             .then(response => response.json())
             .then(data => {
-                displayPhotoResult(data);
+                displayResult(data);
             })
             .catch(err => {
                 displayError(err);
             });
         }
 
-        function displayPhotoResult(data) {
-            const photoResultDiv = document.getElementById('photoResult');
+        // 顯示結果
+        function displayResult(data) {
+            const resultDiv = document.getElementById('result');
             if (data.numbers) {
-                photoResultDiv.innerHTML = `<p>辨識結果: ${data.numbers.join(', ')}</p>`;
+                resultDiv.innerHTML = `<p>辨識結果: ${data.numbers.join(', ')}</p>`;
             } else if (data.error) {
-                photoResultDiv.innerHTML = `<p>錯誤: ${data.error}</p>`;
+                resultDiv.innerHTML = `<p>錯誤: ${data.error}</p>`;
             }
         }
 
+        // 顯示錯誤
         function displayError(err) {
-            const photoResultDiv = document.getElementById('photoResult');
-            photoResultDiv.innerHTML = `<p>錯誤: ${err}</p>`;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<p>錯誤: ${err}</p>`;
         }
 
+        // 價錢反推重量功能
         function calculateWeight() {
             const price = parseFloat(document.getElementById('price').value);
             const pricePerTaijin = parseFloat(document.getElementById('pricePerTaijin').value);
 
             if (isNaN(price) || isNaN(pricePerTaijin) || price <= 0 || pricePerTaijin <= 0) {
-                alert('請輸入有效且正數的總價錢和每台斤的價錢！');
+                alert('請輸入有效的總價錢和每台斤的價錢！');
                 return;
             }
 
-            const pricePerQian = pricePerTaijin / 160;
-            const totalQian = price / pricePerQian;
+            // 發送請求到後端
+            fetch('/calculate_weight', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ price, price_per_taijin: pricePerTaijin })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('錯誤: ' + data.error);
+                        return;
+                    }
 
-            const taijin = Math.floor(totalQian / 160);
-            const liang = Math.floor((totalQian % 160) / 10);
-            const qian = Math.round((totalQian % 160) % 10);
-
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = `
-                <p>輸入總價錢: ${price}</p>
-                <p>每台斤價錢: ${pricePerTaijin}</p>
-                <p>台斤: ${taijin} 兩: ${liang} 錢: ${qian}</p>
-            `;
+                    // 顯示結果
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerHTML = `
+                        <p>輸入總價錢: ${data.price}</p>
+                        <p>每台斤價錢: ${data.price_per_taijin}</p>
+                        <p>重量: ${data.taijin}斤 ${data.liang}兩 ${data.qian}錢</p>
+                        <p>十進制重量: ${data.decimal_weight}</p>
+                    `;
+                })
+                .catch(err => alert('發生錯誤: ' + err));
         }
     </script>
 </body>
