@@ -26,20 +26,15 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-        video, canvas {
-            max-width: 100%;
-            margin: 10px 0;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>重量辨識與價錢反推</h1>
 
-        <!-- 拍照功能 -->
-        <video id="camera" autoplay playsinline></video>
-        <canvas id="canvas" style="display: none;"></canvas>
-        <button onclick="capturePhoto()">拍照辨識重量</button>
+        <!-- 上傳檔案 -->
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <button onclick="uploadImage()">辨識上傳圖片</button>
 
         <!-- 價錢反推功能 -->
         <h2>價錢反推重量</h2>
@@ -52,53 +47,7 @@
     </div>
 
     <script>
-        const video = document.getElementById('camera');
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-
-        // 啟動相機 (使用後鏡頭)
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then((stream) => {
-                video.srcObject = stream;
-            })
-            .catch((err) => {
-                alert('無法啟用相機: ' + err);
-            });
-
-        // 拍照並辨識重量
-        function capturePhoto() {
-            // 設置畫布大小與相機畫面一致
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // 將相機畫面繪製到畫布上
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // 將畫布轉換為 Blob
-            canvas.toBlob((blob) => {
-                uploadImageBlob(blob);
-            }, 'image/png');
-        }
-
-        // 上傳相機圖片 Blob
-        function uploadImageBlob(blob) {
-            const formData = new FormData();
-            formData.append('image', blob);
-
-            fetch('/recognize', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayResult(data);
-            })
-            .catch(err => {
-                displayError(err);
-            });
-        }
-
-        // 上傳文件圖片
+        // 上傳檔案並辨識重量
         function uploadImage() {
             const fileInput = document.getElementById('fileInput');
             if (!fileInput.files[0]) {
@@ -122,7 +71,7 @@
             });
         }
 
-        // 顯示結果
+        // 顯示辨識結果
         function displayResult(data) {
             const resultDiv = document.getElementById('result');
             if (data.numbers) {
