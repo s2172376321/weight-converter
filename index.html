@@ -24,10 +24,7 @@
             border-radius: 5px;
         }
         button {
-            padding: 20px;
-            font-size: 1.5em;
-            width: 100%;
-            margin: 10px 0;
+            padding: 10px 20px;
             background-color: #007BFF;
             color: white;
             border: none;
@@ -53,43 +50,126 @@
     <div class="container">
         <h1>重量轉換器</h1>
 
-        <label for="fileInput">上傳圖片進行辨識:</label>
-        <input type="file" id="fileInput" accept="image/*">
+        <label for="price">請輸入總價錢（數值）:</label>
+        <input type="number" id="price" step="0.01" placeholder="例如: 1000">
 
-        <button onclick="uploadImage()">辨識圖片</button>
+        <label for="pricePerTaijin">請輸入每台斤的價錢（數值）:</label>
+        <input type="number" id="pricePerTaijin" step="0.01" placeholder="例如: 200">
+
+        <button onclick="calculateWeight()">計算</button>
 
         <div id="result" class="result hidden"></div>
+
+        <hr>
+
+        <h2>相機功能</h2>
+        <button onclick="openCamera()">開啟相機</button>
+        <video id="camera" autoplay playsinline class="hidden" style="width:100%;"></video>
+        <canvas id="canvas" class="hidden"></canvas>
+        <button id="takePhoto" class="hidden" onclick="capturePhoto()">拍照</button>
+        <br>
+        <label for="photoWeight">拍攝後數字:</label>
+        <input type="number" id="photoWeight" step="0.01" placeholder="例如: 50">
+
+        <label for="photoPricePerTaijin">請輸入每台斤的價錢（數值）:</label>
+        <input type="number" id="photoPricePerTaijin" step="0.01" placeholder="例如: 200">
+
+        <button onclick="calculatePhotoPrice()">計算總價</button>
+
+        <div id="photoResult" class="result hidden"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     <script>
-        function uploadImage() {
-            const fileInput = document.getElementById('fileInput');
-            const resultDiv = document.getElementById('result');
+        let currentStream;
 
-            if (!fileInput.files[0]) {
-                alert('請選擇一張圖片！');
+        function openCamera() {
+            const video = document.getElementById('camera');
+            const takePhotoButton = document.getElementById('takePhoto');
+
+            const constraints = {
+                video: {
+                    facingMode: "environment"
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    currentStream = stream;
+                    video.style.display = 'block';
+                    takePhotoButton.style.display = 'block';
+                    video.srcObject = stream;
+                })
+                .catch((err) => {
+                    alert('無法開啟相機: ' + err);
+                });
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('camera');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 停止直播並隱藏相機畫面
+            stopCamera();
+
+            // 使用 OCR 辨識數字
+            recognizeText(canvas);
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('camera');
+            const takePhotoButton = document.getElementById('takePhoto');
+
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            video.style.display = 'none';
+            takePhotoButton.style.display = 'none';
+        }
+
+        function recognizeText(canvas) {
+            const imageData = canvas.toDataURL('image/png');
+
+            Tesseract.recognize(imageData, 'eng')
+                .then(({ data: { text } }) => {
+                    const weightInput = document.getElementById('photoWeight');
+                    const recognizedNumber = parseFloat(text.replace(/[^0-9.]/g, '')); // 過濾非數字字符
+                    if (!isNaN(recognizedNumber)) {
+                        weightInput.value = recognizedNumber;
+                        alert(`辨識完成！重量已填入: ${recognizedNumber}`);
+                    } else {
+                        alert('未能成功辨識數字，請重試或手動輸入。');
+                    }
+                })
+                .catch((err) => {
+                    alert('文字辨識失敗: ' + err);
+                });
+        }
+
+        function calculatePhotoPrice() {
+            const weight = parseFloat(document.getElementById('photoWeight').value);
+            const pricePerTaijin = parseFloat(document.getElementById('photoPricePerTaijin').value);
+
+            if (isNaN(weight) || isNaN(pricePerTaijin) || weight <= 0 || pricePerTaijin <= 0) {
+                alert('請輸入有效且正數的重量和每台斤的價錢！');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            const totalPrice = (weight / 16) * pricePerTaijin;
 
-            fetch('/recognize', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.numbers) {
-                    resultDiv.classList.remove('hidden');
-                    resultDiv.innerHTML = `<p>辨識結果: ${data.numbers.join(', ')}</p>`;
-                } else {
-                    alert('辨識失敗！');
-                }
-            })
-            .catch(err => {
-                alert('錯誤發生: ' + err);
-            });
+            const photoResultDiv = document.getElementById('photoResult');
+            photoResultDiv.style.display = 'block';
+            photoResultDiv.innerHTML = `
+                <p>重量: ${weight} 兩</p>
+                <p>每台斤價錢: ${pricePerTaijin}</p>
+                <p>總價: ${totalPrice.toFixed(2)} 元</p>
+            `;
         }
     </script>
 </body>
