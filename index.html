@@ -3,124 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>重量辨識與價錢反推</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            text-align: center;
-        }
-        input, button {
-            margin: 10px;
-            padding: 10px;
-            width: 90%;
-            font-size: 1em;
-        }
-        #result {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-    </style>
+    <title>商品選擇系統</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>重量辨識與價錢反推</h1>
+    <div class="container mt-4">
+        <h1 class="text-center">商品選擇系統</h1>
 
-        <!-- 上傳檔案 -->
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
-        <button onclick="uploadImage()">辨識上傳圖片</button>
+        <!-- 類別選擇 -->
+        <div class="mb-4">
+            <label for="category" class="form-label">選擇商品類別：</label>
+            <select id="category" class="form-select">
+                <option value="">-- 請選擇 --</option>
+                <option value="2801">蔬菜</option>
+                <option value="2802">水果</option>
+                <option value="2803">瓜果類</option>
+                <option value="2804">雞肉類</option>
+                <option value="2806">加工類</option>
+            </select>
+        </div>
 
-        <!-- 價錢反推功能 -->
-        <h2>價錢反推重量</h2>
-        <input type="number" id="price" placeholder="請輸入總價錢 (數值)" step="0.01">
-        <input type="number" id="pricePerTaijin" placeholder="請輸入每台斤價格 (數值)" step="0.01">
-        <button onclick="calculateWeight()">計算重量</button>
+        <!-- 商品名稱顯示 -->
+        <div class="mb-4">
+            <label for="product" class="form-label">選擇商品名稱：</label>
+            <select id="product" class="form-select">
+                <option value="">-- 請先選擇類別 --</option>
+            </select>
+        </div>
 
-        <!-- 結果顯示區 -->
-        <div id="result"></div>
+        <!-- 購買日期 -->
+        <div class="mb-4">
+            <label for="purchase-date" class="form-label">選擇購買日期：</label>
+            <input type="date" id="purchase-date" class="form-control">
+        </div>
+
+        <!-- 輸入斤數 -->
+        <div class="mb-4">
+            <label for="weight" class="form-label">輸入斤數：</label>
+            <input type="number" id="weight" class="form-control" placeholder="例如：10">
+        </div>
+
+        <!-- 輸入用途 -->
+        <div class="mb-4">
+            <label for="purpose" class="form-label">選擇用途：</label>
+            <select id="purpose" class="form-select">
+                <option value="">-- 請選擇 --</option>
+                <option value="現場販售">現場販售</option>
+                <option value="董事長">董事長</option>
+                <option value="食農教育">食農教育</option>
+                <option value="神農廚房">神農廚房</option>
+                <option value="其他">其他</option>
+            </select>
+            <input type="text" id="other-purpose" class="form-control mt-2" placeholder="請填寫其他用途" style="display: none;">
+        </div>
+
+        <!-- 提交按鈕 -->
+        <button id="submit" class="btn btn-primary">提交</button>
     </div>
 
     <script>
-        // 上傳檔案並辨識重量
-        function uploadImage() {
-            const fileInput = document.getElementById('fileInput');
-            if (!fileInput.files[0]) {
-                alert('請選擇一張圖片！');
+        // Load product data
+        const products = {
+            "2801": ["蔬菜A", "蔬菜B"],
+            "2802": ["水果A", "水果B"],
+            "2803": ["瓜果類A", "瓜果類B"],
+            "2804": ["雞肉類A", "雞肉類B"],
+            "2806": ["加工類A", "加工類B"]
+        };
+
+        // Update product list based on category
+        $("#category").change(function () {
+            const category = $(this).val();
+            const productSelect = $("#product");
+            productSelect.empty();
+            productSelect.append('<option value="">-- 請選擇商品 --</option>');
+
+            if (products[category]) {
+                products[category].forEach(product => {
+                    productSelect.append(`<option value="${product}">${product}</option>`);
+                });
+            }
+        });
+
+        // Show or hide other-purpose input
+        $("#purpose").change(function () {
+            if ($(this).val() === "其他") {
+                $("#other-purpose").show();
+            } else {
+                $("#other-purpose").hide();
+            }
+        });
+
+        // Submit button logic
+        $("#submit").click(function () {
+            const category = $("#category").val();
+            const product = $("#product").val();
+            const date = $("#purchase-date").val();
+            const weight = $("#weight").val();
+            const purpose = $("#purpose").val();
+            const otherPurpose = $("#other-purpose").val();
+
+            if (!category || !product || !date || !weight || (!purpose && !otherPurpose)) {
+                alert("請完整填寫所有欄位！");
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            const selectedPurpose = purpose === "其他" ? otherPurpose : purpose;
 
-            fetch('/recognize', {
+            // Send data to backend
+            const formData = {
+                category: category,
+                product: product,
+                date: date,
+                weight: weight,
+                purpose: selectedPurpose
+            };
+
+            $.ajax({
+                url: 'https://your-backend-url/save', // Replace with your backend URL
                 method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayResult(data);
-            })
-            .catch(err => {
-                displayError(err);
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function (response) {
+                    alert("資料已成功存到 Google 雲端！");
+                },
+                error: function () {
+                    alert("資料提交失敗，請重試！");
+                }
             });
-        }
-
-        // 顯示辨識結果
-        function displayResult(data) {
-            const resultDiv = document.getElementById('result');
-            if (data.numbers) {
-                resultDiv.innerHTML = `<p>辨識結果: ${data.numbers.join(', ')}</p>`;
-            } else if (data.error) {
-                resultDiv.innerHTML = `<p>錯誤: ${data.error}</p>`;
-            }
-        }
-
-        // 顯示錯誤
-        function displayError(err) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = `<p>錯誤: ${err}</p>`;
-        }
-
-        // 價錢反推重量功能
-        function calculateWeight() {
-            const price = parseFloat(document.getElementById('price').value);
-            const pricePerTaijin = parseFloat(document.getElementById('pricePerTaijin').value);
-
-            if (isNaN(price) || isNaN(pricePerTaijin) || price <= 0 || pricePerTaijin <= 0) {
-                alert('請輸入有效的總價錢和每台斤的價錢！');
-                return;
-            }
-
-            // 發送請求到後端
-            fetch('/calculate_weight', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ price, price_per_taijin: pricePerTaijin })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert('錯誤: ' + data.error);
-                        return;
-                    }
-
-                    // 顯示結果
-                    const resultDiv = document.getElementById('result');
-                    resultDiv.innerHTML = `
-                        <p>輸入總價錢: ${data.price}</p>
-                        <p>每台斤價錢: ${data.price_per_taijin}</p>
-                        <p>重量: ${data.taijin}斤 ${data.liang}兩 ${data.qian}錢</p>
-                        <p>十進制重量: ${data.decimal_weight}</p>
-                    `;
-                })
-                .catch(err => alert('發生錯誤: ' + err));
-        }
+        });
     </script>
 </body>
 </html>
